@@ -2,6 +2,20 @@
 
 Proyecto de control de un carro robótico con Arduino + servidor Python (FastMCP).
 
+## Descripción del sistema
+
+Este proyecto parte de un carro de control remoto comercial que fue modificado para actuar con IA.
+La IA envía órdenes de movimiento y consulta de estado a través de un servidor Python, y el Arduino ejecuta
+las acciones físicas en el vehículo.
+
+El carro integra:
+
+- 2 servomotores para abrir y cerrar las puertas.
+- 1 LED rojo que indica reposo (carro estático).
+- 1 LED verde que indica movimiento.
+- 1 LED naranja (amarillo en pines A1) que indica puertas abiertas (parpadeo mientras permanezcan abiertas).
+- 1 sensor de distancia para medir obstáculos y responder en centímetros (cm).
+
 ## Objetivo
 
 Este repositorio separa el sistema en dos partes:
@@ -29,10 +43,11 @@ Este repositorio separa el sistema en dos partes:
 - Control de 2 servos (puertas): abrir/cerrar puerta 1 y puerta 2.
 - Sensor ultrasónico para distancia y auto-detención al avanzar.
 - Lógica de LEDs de estado:
-  - Rojo: detenido.
-  - Verde: en movimiento.
-  - Amarillo: parpadeo si alguna puerta está abierta.
+- Rojo: reposo o estado estático.
+- Verde: carro en movimiento.
+- Naranja/amarillo: puertas abiertas (parpadeo mientras estén abiertas).
 - Protocolo de comandos serial en texto plano.
+- Consulta de distancia desde la IA, con respuesta en cm.
 
 ### Mapa de pines
 
@@ -117,9 +132,32 @@ Sensado y estado:
 
 ## Notas de comportamiento
 
-- Al avanzar, el firmware revisa distancia frontal y detiene el carro si detecta obstáculo dentro del umbral configurado.
+- Al avanzar, el firmware revisa distancia frontal y detiene el carro si detecta un obstáculo por debajo del umbral de seguridad documentado (22 cm).
 - Los giros tienen duración fija y luego ejecutan `STOP`.
 - El servidor filtra respuestas seriales inesperadas para mantener consistencia en la respuesta final.
+
+## Funcionamiento del puente H
+
+El puente H es el circuito que permite controlar motores DC en ambos sentidos usando señales del Arduino.
+En este proyecto, se usan señales de dirección (`IN1`, `IN2`, `IN3`, `IN4`) y de velocidad (`ENA`, `ENB` mediante PWM):
+
+- Dirección: combinando HIGH/LOW en las entradas se define si cada motor gira hacia adelante o hacia atrás.
+- Velocidad: con PWM en `ENA` y `ENB` se regula la potencia entregada a cada motor.
+- Frenado/paro: colocando velocidad en 0 y entradas en LOW, el carro se detiene.
+
+Gracias al puente H, el sistema puede avanzar, retroceder y girar variando sentido y potencia de cada motor.
+
+## Funcionamiento del Arduino en el proyecto
+
+El Arduino actúa como controlador de tiempo real del carro:
+
+- Recibe comandos por puerto serial (enviados por `server.py`).
+- Ejecuta acciones de actuadores (motores y servos).
+- Lee sensores (ultrasónico) para estimar distancia en cm.
+- Aplica reglas de seguridad (detención automática ante obstáculo cercano).
+- Devuelve respuestas seriales al servidor para que la IA informe el resultado.
+
+En resumen, la IA toma decisiones de alto nivel, y el Arduino materializa esas decisiones en control físico del vehículo.
 
 ## Estado del proyecto
 
