@@ -1,11 +1,4 @@
-#include <Arduino.h>
 #include <Servo.h>
-#include <HardwareSerial.h>
-
-extern HardwareSerial Serial;
-
-void processCommand(String line);
-void detener();
 
 // ---------------- PINES SERVO ----------------
 const int servoPin1 = 3;
