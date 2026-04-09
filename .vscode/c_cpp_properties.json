@@ -1,0 +1,26 @@
+{
+  "configurations": [
+    {
+      "name": "windows-gcc-x64",
+      "includePath": [
+        "${workspaceFolder}/**",
+        "${env:USERPROFILE}/Documents/Arduino/libraries/Servo/src",
+        "${env:USERPROFILE}/Documents/Arduino/libraries/**",
+        "C:/Program Files (x86)/Arduino/libraries/Servo/src",
+        "C:/Program Files (x86)/Arduino/libraries/**",
+        "C:/Program Files (x86)/Arduino/hardware/arduino/avr/cores/arduino",
+        "C:/Program Files (x86)/Arduino/hardware/arduino/avr/variants/standard",
+        "C:/Program Files (x86)/Arduino/hardware/tools/avr/avr/include",
+        "C:/Program Files (x86)/Arduino/hardware/tools/avr/lib/gcc/avr/7.3.0/include"
+      ],
+      "compilerPath": "C:/Program Files (x86)/Arduino/hardware/tools/avr/bin/avr-g++.exe",
+      "cStandard": "${default}",
+      "cppStandard": "${default}",
+      "intelliSenseMode": "windows-gcc-x64",
+      "compilerArgs": [
+        ""
+      ]
+    }
+  ],
+  "version": 4
+}
