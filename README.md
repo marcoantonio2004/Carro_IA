@@ -135,7 +135,7 @@ LEDs:
 ### Arquitectura general
 
 1. `server.py` abre conexión serial (COM7, 9600).
-2. Se envía un comando de texto (por ejemplo: `Abre la puerta 1 o 2`, `Avanza`, `Gira a la derecha o izquierda` y `A que distancia se encuentra un obstáculo`).
+2. Se envía un comando de texto (por ejemplo: `Abre la puerta 1 o 2`, `Avanza`, `Gira a la derecha o izquierda` y `A qué distancia se encuentra un obstáculo`).
 3. `arduino.ino` recibe el comando, ejecuta acción y responde por serial.
 4. El servidor devuelve el resultado como respuesta de la tool (función o acción).
 
