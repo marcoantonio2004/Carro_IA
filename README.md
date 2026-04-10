@@ -54,26 +54,25 @@ Este repositorio separa el sistema en dos partes:
 - Batería independiente de 7.4 V para los motores de tracción.
 - 2 servomotores para apertura/cierre de puertas.
 - Sensor ultrasónico para medición de distancia frontal.
-- 3 LEDs de estado: rojo, amarillo/naranja y verde.
+- 3 LEDs de estado: rojo, naranja y verde.
 
 ### Funcionamiento del puente H
 
 El puente H es el circuito que permite controlar motores DC en ambos sentidos usando señales del Arduino.
-En este proyecto, se usan señales de dirección (`IN1`, `IN2`, `IN3`, `IN4`) y de velocidad (`ENA`, `ENB` mediante PWM):
+En este proyecto, se usan señales de dirección (`IN1`, `IN2`, `IN3`, `IN4`) y de velocidad (`ENA`, `ENB`):
 
-- Configuración de tracción: se utilizan 2 motores DC para mover las 4 llantas (uno para el lado derecho y otro para el lado izquierdo).
-- Alimentación de tracción: estos motores se alimentan con una batería independiente de 7.4 V.
 - Dirección: combinando HIGH/LOW en las entradas se define si cada motor gira hacia adelante o hacia atrás.
 - Velocidad: con PWM en `ENA` y `ENB` se regula la potencia entregada a cada motor.
 - Frenado/paro: colocando velocidad en 0 y entradas en LOW, el carro se detiene.
 
 ### Conexión general del circuito
 
-- Arduino genera señales de control para el puente H (dirección y velocidad PWM).
+- Arduino genera señales de control para el puente H (dirección y velocidad).
 - El puente H alimenta y gobierna los dos motores de tracción.
 - Los servos de puertas se controlan desde pines PWM del Arduino.
 - El sensor ultrasónico se conecta a pines TRIG/ECHO para medir distancia.
 - Los LEDs se conectan a salidas del Arduino para indicar estados del sistema.
+- Todas las tierras se unieron en común para mantener referencia eléctrica estable.
 
 ### Mapa de pines
 
@@ -102,9 +101,8 @@ LEDs:
 - LED amarillo: A1
 - LED verde: A2
 
-### Cómo se conectó todo
+### Notas de conexión
 
-- Se unieron todas las tierras en común para mantener referencia eléctrica estable.
 - La lógica de control se gestiona con Arduino y la potencia de tracción con batería de 7.4 V.
 - Cada subsistema (tracción, puertas, sensado e indicadores) se cableó por separado para facilitar pruebas y mantenimiento.
 
@@ -120,11 +118,10 @@ LEDs:
 
 ### Funcionalidades del programa en Arduino (`arduino.ino`)
 
-- Control de motores DC: avanzar, retroceder, girar derecha, girar izquierda, detener.
-- Control de 2 servos (puertas): abrir/cerrar puerta 1 y puerta 2.
-- Sensor ultrasónico para distancia y auto-detención al avanzar.
-- Protocolo de comandos serial en texto plano.
-- Consulta de distancia desde la IA, con respuesta en cm.
+- Ejecuta comandos de movimiento: avanzar, retroceder, girar derecha, girar izquierda y detener.
+- Controla 2 servos para abrir y cerrar puerta 1 y puerta 2.
+- Lee el sensor ultrasónico para medir distancia y activar detención automática al avanzar.
+- Usa protocolo de comandos serial en texto plano y devuelve respuesta al servidor.
 
 ## 4) Comunicación Arduino + IA (LM Studio)
 
