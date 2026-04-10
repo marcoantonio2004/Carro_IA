@@ -11,19 +11,19 @@ Proyecto de control de un carro robótico con Arduino, servidor Python y modelo 
 
 ### Desarmado y preparación
 
-- Se desmontó la carrocería para acceder al sistema interno de motores y a la zona de puertas.
+- Se desmontó la carrocería para acceder al sistema interno de motores ubicación de las puertas.
 - Se retiraron piezas no necesarias para liberar espacio y facilitar el enrutado de cables.
 - Se conservaron tornillos y puntos de fijación para el reensamblaje final.
 
 ### Unión de cables
 
 - Se identificaron líneas de alimentación, tierra común y señales de control.
-- Se hicieron empalmes y extensiones donde los cables originales no alcanzaban.
-- Cada unión se aisló para evitar cortocircuitos y falsos contactos por vibración.
+- Se hicieron extensiones donde los cables originales no alcanzaban.
+- Cada unión se aisló para evitar cortocircuitos y falsos contactos.
 
 ### Cortes para las puertas
 
-- Se realizaron cortes puntuales en la carrocería para permitir el recorrido de las puertas accionadas por servos.
+- Se realizaron cortes en la carrocería para permitir el recorrido de las puertas accionadas por servos.
 - Se verificó que los cortes no afectaran la estructura principal ni rozaran el cableado interno.
 
 ### Ensamble final
@@ -49,7 +49,7 @@ Este repositorio separa el sistema en dos partes:
 
 - Carrito base de juguete modificado.
 - Placa Arduino como controlador principal.
-- Puente H para control de motores DC.
+- Puente H para control de motores DC (corriente directa).
 - 2 motores DC de tracción para 4 llantas: un motor mueve el lado derecho y otro el lado izquierdo.
 - Batería independiente de 7.4 V para los motores de tracción.
 - 2 servomotores para apertura/cierre de puertas.
@@ -62,8 +62,8 @@ El puente H es el circuito que permite controlar motores DC en ambos sentidos us
 En este proyecto, se usan señales de dirección (`IN1`, `IN2`, `IN3`, `IN4`) y de velocidad (`ENA`, `ENB`):
 
 - Dirección: combinando HIGH/LOW en las entradas se define si cada motor gira hacia adelante o hacia atrás.
-- Velocidad: con PWM en `ENA` y `ENB` se regula la potencia entregada a cada motor.
-- Frenado/paro: colocando velocidad en 0 y entradas en LOW, el carro se detiene.
+- Velocidad: con PWM (modulación por ancho de pulso) en `ENA` y `ENB` se regula la potencia entregada a cada motor.
+- Frenado/detención: colocando velocidad en 0 y entradas en LOW, el carro se detiene.
 
 ### Conexión general del circuito
 
@@ -112,7 +112,7 @@ LEDs:
 - Recibe comandos por puerto serial y ejecuta acciones de actuadores (motores y servos).
 - En reposo se enciende el LED rojo.
 - En movimiento se enciende el LED verde.
-- Cuando una puerta está abierta, el LED naranja parpadea.
+- Cuando una puerta está abierta o ambas, el LED naranja parpadea.
 - Al avanzar, el sensor ultrasónico mide distancia frontal.
 - Si detecta un obstáculo a 22 cm o menos, el sistema detiene el carro automáticamente.
 
@@ -137,7 +137,7 @@ LEDs:
 1. `server.py` abre conexión serial (COM7, 9600).
 2. Se envía un comando de texto (por ejemplo: `Abre la puerta 1 o 2`, `Avanza`, `Gira a la derecha o izquierda` y `A que distancia se encuentra un obstáculo`).
 3. `arduino.ino` recibe el comando, ejecuta acción y responde por serial.
-4. El servidor devuelve el resultado como respuesta de la tool.
+4. El servidor devuelve el resultado como respuesta de la tool (función o acción).
 
 ### Responsabilidad del servidor (`server.py`)
 
