@@ -1,73 +1,88 @@
 # Carro_IA
 
-Proyecto de control de un carro robótico con Arduino + servidor Python (FastMCP).
+Proyecto de control de un carro robótico con Arduino, servidor Python y modelo de IA local.
 
-## Descripción del sistema
+## 1) Armado del proyecto
+
+### Compra y selección del carro
+
+- Se compró un carro de juguete con chasis firme, tracción funcional y espacio interno para electrónica.
+- Se validó que el tamaño permitiera alojar Arduino, puente H, servos, sensor y cableado.
+
+### Desarmado y preparación
+
+- Se desmontó la carrocería para acceder al sistema interno de motores y a la zona de puertas.
+- Se retiraron piezas no necesarias para liberar espacio y facilitar el enrutado de cables.
+- Se conservaron tornillos y puntos de fijación para el reensamblaje final.
+
+### Unión de cables
+
+- Se identificaron líneas de alimentación, tierra común y señales de control.
+- Se hicieron empalmes y extensiones donde los cables originales no alcanzaban.
+- Cada unión se aisló para evitar cortocircuitos y falsos contactos por vibración.
+
+### Cortes para las puertas
+
+- Se realizaron cortes puntuales en la carrocería para permitir el recorrido de las puertas accionadas por servos.
+- Se verificó que los cortes no afectaran la estructura principal ni rozaran el cableado interno.
+
+### Ensamble final
+
+- Se montó nuevamente la carrocería con todos los módulos en posición.
+- Se probaron puertas, movimiento, lectura de distancia y respuesta por serial.
+
+## 2) Herramientas, componentes y circuito
+
+### Descripción del sistema
 
 Este proyecto parte de un carro de control remoto de juguete que fue modificado para actuar con IA.
 La IA envía órdenes de movimiento y el Arduino ejecuta las acciones físicas en el vehículo.
 
-El carro integra:
-
-- 2 motores de tracción para las 4 llantas: un motor mueve el lado derecho y otro motor mueve el lado izquierdo.
-- Alimentación independiente de 7.4 V para los motores de tracción.
-- 2 servomotores para abrir y cerrar las puertas.
-- 1 LED rojo que indica reposo (carro estático).
-- 1 LED verde que indica movimiento.
-- 1 LED naranja que indica puertas abiertas (parpadeo mientras permanezcan abiertas).
-- 1 sensor de distancia para detener el carro al estar en un rango de 22 centímetros o menos y consultar distancia.
-
-## Objetivo
+### Objetivo
 
 Este repositorio separa el sistema en dos partes:
 
 - Programa en Arduino para mover motores, controlar puertas (servos), leer distancia y responder comandos por serial.
 - Servidor en Python que envía comandos al Arduino y expone herramientas para controlarlo desde un flujo de IA.
 
-## Estructura del repositorio
+### Elementos principales
 
-- `arduino.ino`: Código principal del carro.
-- `server.py`: servidor MCP que se comunica por puerto serial con el Arduino.
+- Carrito base de juguete modificado.
+- Placa Arduino como controlador principal.
+- Puente H para control de motores DC.
+- 2 motores DC de tracción para 4 llantas: un motor mueve el lado derecho y otro el lado izquierdo.
+- Batería independiente de 7.4 V para los motores de tracción.
+- 2 servomotores para apertura/cierre de puertas.
+- Sensor ultrasónico para medición de distancia frontal.
+- 3 LEDs de estado: rojo, amarillo/naranja y verde.
 
-## Arquitectura general
+### Funcionamiento del puente H
 
-1. `server.py` abre conexión serial (COM7, 9600).
-2. Se envía un comando de texto (por ejemplo: `Abre la puerta 1 o 2`, `Avanza`, `Gira a la derecha o izquierda` y `A que distancia se encuentra un obstáculo`).
-3. `arduino.ino` recibe el comando, ejecuta acción y responde por serial.
-4. El servidor devuelve el resultado como respuesta de la tool.
+El puente H es el circuito que permite controlar motores DC en ambos sentidos usando señales del Arduino.
+En este proyecto, se usan señales de dirección (`IN1`, `IN2`, `IN3`, `IN4`) y de velocidad (`ENA`, `ENB` mediante PWM):
 
-## Integración con IA (LM Studio)
+- Configuración de tracción: se utilizan 2 motores DC para mover las 4 llantas (uno para el lado derecho y otro para el lado izquierdo).
+- Alimentación de tracción: estos motores se alimentan con una batería independiente de 7.4 V.
+- Dirección: combinando HIGH/LOW en las entradas se define si cada motor gira hacia adelante o hacia atrás.
+- Velocidad: con PWM en `ENA` y `ENB` se regula la potencia entregada a cada motor.
+- Frenado/paro: colocando velocidad en 0 y entradas en LOW, el carro se detiene.
 
-El control del carro también se realiza mediante IA local usando LM Studio.
+### Conexión general del circuito
 
-- Motor de inferencia: LM Studio.
-- Modelo utilizado: `qwen/qwen3-v1-4b`.
-- Integración: plugin MCP `mcp/robot-control` conectado al servidor `server.py`.
-
-Con esta integración, se envían instrucciones en lenguaje natural (por ejemplo: "cierra las dos puertas", "gira a la derecha" o "gira a la izquierda") y el modelo invoca la tool correspondiente para ejecutar la acción en el carro.
-
-## Firmware Arduino (`arduino.ino`)
-
-### Funcionalidades
-
-- Control de motores DC: avanzar, retroceder, girar derecha, girar izquierda, detener.
-- Control de 2 servos (puertas): abrir/cerrar puerta 1 y puerta 2.
-- Sensor ultrasónico para distancia y auto-detención al avanzar.
-- Lógica de LEDs de estado:
-- Rojo: reposo o estado estático.
-- Verde: carro en movimiento.
-- Naranja/amarillo: puertas abiertas (parpadeo mientras estén abiertas).
-- Protocolo de comandos serial en texto plano.
-- Consulta de distancia desde la IA, con respuesta en cm.
+- Arduino genera señales de control para el puente H (dirección y velocidad PWM).
+- El puente H alimenta y gobierna los dos motores de tracción.
+- Los servos de puertas se controlan desde pines PWM del Arduino.
+- El sensor ultrasónico se conecta a pines TRIG/ECHO para medir distancia.
+- Los LEDs se conectan a salidas del Arduino para indicar estados del sistema.
 
 ### Mapa de pines
 
-#### Servos
+Servos:
 
 - Servo puerta 1: pin 3
 - Servo puerta 2: pin 2
 
-#### Motores
+Motores (puente H):
 
 - IN1: 7
 - IN2: 8
@@ -76,18 +91,89 @@ Con esta integración, se envían instrucciones en lenguaje natural (por ejemplo
 - ENA: 5
 - ENB: 6
 
-#### Ultrasónico
+Ultrasónico:
 
 - TRIG: 9
 - ECHO: 10
 
-#### LEDs
+LEDs:
 
 - LED rojo: A0
 - LED amarillo: A1
 - LED verde: A2
 
-### Comandos serial soportados
+### Cómo se conectó todo
+
+- Se unieron todas las tierras en común para mantener referencia eléctrica estable.
+- La lógica de control se gestiona con Arduino y la potencia de tracción con batería de 7.4 V.
+- Cada subsistema (tracción, puertas, sensado e indicadores) se cableó por separado para facilitar pruebas y mantenimiento.
+
+## 3) Funcionamiento sencillo del carro
+
+- El Arduino actúa como controlador de tiempo real del carro.
+- Recibe comandos por puerto serial y ejecuta acciones de actuadores (motores y servos).
+- En reposo se enciende el LED rojo.
+- En movimiento se enciende el LED verde.
+- Cuando una puerta está abierta, el LED amarillo/naranja parpadea.
+- Al avanzar, el sensor ultrasónico mide distancia frontal.
+- Si detecta un obstáculo a 22 cm o menos, el sistema detiene el carro automáticamente.
+
+### Funcionalidades del programa en Arduino (`arduino.ino`)
+
+- Control de motores DC: avanzar, retroceder, girar derecha, girar izquierda, detener.
+- Control de 2 servos (puertas): abrir/cerrar puerta 1 y puerta 2.
+- Sensor ultrasónico para distancia y auto-detención al avanzar.
+- Protocolo de comandos serial en texto plano.
+- Consulta de distancia desde la IA, con respuesta en cm.
+
+## 4) Comunicación Arduino + IA (LM Studio)
+
+### Integración lograda
+
+- Se usó LM Studio como motor de inferencia local.
+- Se usó el modelo `qwen/qwen3-v1-4b`.
+- El servidor `server.py` actúa como puente entre el modelo y el Arduino por puerto serial.
+- La integración MCP utilizada es `mcp/robot-control`.
+
+### Arquitectura general
+
+1. `server.py` abre conexión serial (COM7, 9600).
+2. Se envía un comando de texto (por ejemplo: `Abre la puerta 1 o 2`, `Avanza`, `Gira a la derecha o izquierda` y `A que distancia se encuentra un obstáculo`).
+3. `arduino.ino` recibe el comando, ejecuta acción y responde por serial.
+4. El servidor devuelve el resultado como respuesta de la tool.
+
+### Responsabilidad del servidor (`server.py`)
+
+- Envía comandos al Arduino por serial.
+- Espera respuesta según tipo de comando (tiempos de espera distintos).
+- Publica tools MCP para puertas, movimiento, distancia y estado del robot.
+
+### Qué herramientas se usan en esa comunicación
+
+Puertas:
+
+- `open_door_1`: abre puerta 1.
+- `close_door_1`: cierra puerta 1.
+- `open_door_2`: abre puerta 2.
+- `close_door_2`: cierra puerta 2.
+- `open_both_doors`: abre ambas puertas.
+- `close_both_doors`: cierra ambas puertas.
+
+Movimiento:
+
+- `move_forward`: avanza con control de seguridad por distancia.
+- `move_backward`: retrocede.
+- `turn_right`: gira a la derecha.
+- `turn_left`: gira a la izquierda.
+- `stop`: detiene el carro.
+
+Sensado y estado:
+
+- `get_distance`: mide y devuelve distancia frontal en cm.
+- `check_robot_status`: revisa estado general del robot.
+- `check_arduino_connection`: valida conexión serial con Arduino.
+
+### Comandos serial soportados por Arduino
 
 - `PING`: verifica comunicación con Arduino.
 - `OPEN_DOOR_1`: abre la puerta 1 (servo 1).
@@ -101,108 +187,29 @@ Con esta integración, se envían instrucciones en lenguaje natural (por ejemplo
 - `TURN_LEFT`: gira a la izquierda por un tiempo fijo.
 - `STOP`: detiene el movimiento de los motores.
 
-## Servidor Python (`server.py`)
-
-### Responsabilidad
-
-- Envía comandos al Arduino por serial.
-- Espera respuesta según tipo de comando (tiempos de espera distintos).
-- Publica tools MCP para puertas, movimiento, distancia y estado del robot.
-
-### Tools principales
-
-Puertas:
-
-- `open_door_1`: solicita abrir la puerta 1.
-- `close_door_1`: solicita cerrar la puerta 1.
-- `open_door_2`: solicita abrir la puerta 2.
-- `close_door_2`: solicita cerrar la puerta 2.
-- `open_both_doors`: abre ambas puertas en secuencia.
-- `close_both_doors`: cierra ambas puertas en secuencia.
-
-Movimiento:
-
-- `move_forward`: ordena avanzar con control de seguridad por distancia.
-- `move_backward`: ordena retroceder.
-- `turn_right`: ordena giro hacia la derecha.
-- `turn_left`: ordena giro hacia la izquierda.
-- `stop`: ordena detención inmediata del carro.
-
-Sensado y estado:
-
-- `get_distance`: consulta y devuelve la distancia frontal actual.
-- `check_robot_status`: resume estado de movimiento, puertas y sensores.
-- `check_arduino_connection`: valida si el enlace serial está operativo.
-
-## Flujo de uso esperado
+### Flujo de uso esperado
 
 1. Cargar `arduino.ino` en la placa Arduino.
 2. Conectar la placa al puerto definido en `server.py`.
 3. Ejecutar el servidor Python.
 4. Invocar tools para controlar el robot.
 
-## Elaboración del proyecto
+## 5) Ciclo típico de operación
 
-Este apartado resume cómo se construyó el prototipo físico antes de la integración con Arduino e IA.
+1. Encender el carro y el sistema electrónico.
+2. Verificar conexión con Arduino.
+3. Encender indicadores según estado inicial (reposo).
+4. Abrir una o ambas puertas si la instrucción lo requiere.
+5. Ejecutar movimiento (avanzar, retroceder o girar).
+6. Medir distancia durante el avance para evitar colisiones.
+7. Detener el carro al final de la acción o por seguridad.
+8. Cerrar puertas y volver a estado de reposo.
 
-### 1) Compra y selección del carro base
+## Estructura del repositorio
 
-- Se seleccionó un carro de juguete con chasis firme, espacio interno para electrónica y sistema de tracción funcional.
-- Se verificó que el tamaño permitiera alojar placa, puente H, servos, cableado y batería sin comprometer estabilidad.
-
-### 2) Desarmado inicial
-
-- Se desmontó la carcasa para acceder a los motores internos del carroy cortar la zona de las puertas.
-- Se retiraron piezas no necesarias para liberar espacio y facilitar el paso de cables.
-- Se dejo la posición original de tornillos y piezas para simplificar el reensamblaje.
-
-### 3) Unión de cables y adaptación eléctrica
-
-- Se identificaron líneas de alimentación, tierra común y señales de control para motores, servos, LEDs y sensor ultrasónico.
-- Se realizaron empalmes y extensiones de cable con jumpers donde el cable original no alcanzaba la nueva distribución.
-- Se aisló cada unión para evitar cortocircuitos y falsos contactos por vibración del carro.
-
-### 4) Cortes y adaptación de puertas
-
-- Se hicieron cortes puntuales en la carrocería para permitir el recorrido mecánico de las puertas accionadas por servos.
-- Se verificó que los cortes no afectaran la estructura principal ni rozaran con el cableado interno.
-
-### 5) Ensamble final y pruebas
-
-- Se volvió a montar la carrocería con los módulos electrónicos ya fijados.
-- Se probó movimiento, apertura/cierre de puertas, lectura de distancia y respuesta por comandos serial.
-- Se realizaron ajustes de posición de cables y servos para mejorar confiabilidad en operación continua.
-
-## Notas de comportamiento
-
-- Al avanzar, el servidor revisa distancia frontal y detiene el carro si detecta un obstáculo por debajo de los 22 centímetros permitidos
-- Los giros tienen duración fija y luego ejecutan `STOP`.
-- El servidor filtra respuestas seriales inesperadas para mantener consistencia en la respuesta final.
-
-## Funcionamiento del puente H
-
-El puente H es el circuito que permite controlar motores DC en ambos sentidos usando señales del Arduino.
-En este proyecto, se usan señales de dirección (`IN1`, `IN2`, `IN3`, `IN4`) y de velocidad (`ENA`, `ENB` mediante PWM):
-
-- Configuración de tracción: se utilizan 2 motores DC para mover las 4 llantas (uno para el lado derecho y otro para el lado izquierdo).
-- Alimentación de tracción: estos motores se alimentan con una batería independiente de 7.4 V.
-- Dirección: combinando HIGH/LOW en las entradas se define si cada motor gira hacia adelante o hacia atrás.
-- Velocidad: con PWM en `ENA` y `ENB` se regula la potencia entregada a cada motor.
-- Frenado/paro: colocando velocidad en 0 y entradas en LOW, el carro se detiene.
-
-Gracias al puente H, el sistema puede avanzar, retroceder y girar variando sentido y potencia de cada motor.
-
-## Funcionamiento del Arduino en el proyecto
-
-El Arduino actúa como controlador de tiempo real del carro:
-
-- Recibe comandos por puerto serial (enviados por `server.py`).
-- Ejecuta acciones de actuadores (motores y servos).
-- Lee sensores (ultrasónico) para estimar distancia en cm.
-- Aplica reglas de seguridad (detención automática ante obstáculo cercano).
-- Devuelve respuestas seriales al servidor para que la IA informe el resultado.
-
+- `arduino.ino`: programa principal del carro.
+- `server.py`: servidor MCP que se comunica por serial con Arduino.
 
 ## Estado del proyecto
 
-Versión inicial funcional orientada a control remoto por comandos y exposición de tools para integración con agentes IA.
+Versión funcional orientada a control físico del carro por comandos y por integración con IA local.
