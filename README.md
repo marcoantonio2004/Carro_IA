@@ -23,7 +23,7 @@ Proyecto de control de un carro robótico con Arduino, servidor Python y modelo 
 
 ### Cortes para las puertas
 
-- Se realizaron cortes en la carrocería para permitir el recorrido de las puertas accionadas por servos.
+- Se realizaron cortes en la carrocería para permitir la apertura de las puertas accionadas por servos.
 - Se verificó que los cortes no afectaran la estructura principal ni rozaran el cableado interno.
 
 ### Ensamble final
@@ -63,7 +63,7 @@ En este proyecto, se usan señales de dirección (`IN1`, `IN2`, `IN3`, `IN4`) y 
 
 - Dirección: combinando HIGH/LOW en las entradas se define si cada motor gira hacia adelante o hacia atrás.
 - Velocidad: con PWM (modulación por ancho de pulso) en `ENA` y `ENB` se regula la potencia entregada a cada motor.
-- Frenado/detención: colocando velocidad en 0 y entradas en LOW, el carro se detiene.
+- Frenado: colocando velocidad en 0 y entradas en LOW, el carro se detiene.
 
 ### Conexión general del circuito
 
@@ -113,7 +113,7 @@ LEDs:
 - En reposo se enciende el LED rojo.
 - En movimiento se enciende el LED verde.
 - Cuando una puerta está abierta o ambas, el LED naranja parpadea.
-- Al avanzar, el sensor ultrasónico mide distancia frontal.
+- El sensor ultrasónico mide distancia frontal.
 - Si detecta un obstáculo a 22 cm o menos, el sistema detiene el carro automáticamente.
 
 ### Funcionalidades del programa en Arduino (`arduino.ino`)
