@@ -112,7 +112,7 @@ LEDs:
 - Recibe comandos por puerto serial y ejecuta acciones de actuadores (motores y servos).
 - En reposo se enciende el LED rojo.
 - En movimiento se enciende el LED verde.
-- Cuando una puerta está abierta, el LED amarillo/naranja parpadea.
+- Cuando una puerta está abierta, el LED naranja parpadea.
 - Al avanzar, el sensor ultrasónico mide distancia frontal.
 - Si detecta un obstáculo a 22 cm o menos, el sistema detiene el carro automáticamente.
 
@@ -190,17 +190,6 @@ Sensado y estado:
 2. Conectar la placa al puerto definido en `server.py`.
 3. Ejecutar el servidor Python.
 4. Invocar tools para controlar el robot.
-
-## 5) Ciclo típico de operación
-
-1. Encender el carro y el sistema electrónico.
-2. Verificar conexión con Arduino.
-3. Encender indicadores según estado inicial (reposo).
-4. Abrir una o ambas puertas si la instrucción lo requiere.
-5. Ejecutar movimiento (avanzar, retroceder o girar).
-6. Medir distancia durante el avance para evitar colisiones.
-7. Detener el carro al final de la acción o por seguridad.
-8. Cerrar puertas y volver a estado de reposo.
 
 ## Estructura del repositorio
 
