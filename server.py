@@ -1,34 +1,42 @@
-import logging
 import time
 import serial
-from fastmcp import FastMCP
+import requests
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s"
-)
-logger = logging.getLogger("robot_control")
+# ─────────────────────────────────────────
+#  CONFIGURACIÓN LM STUDIO
+# ─────────────────────────────────────────
+LM_STUDIO_URL = "http://localhost:1234/v1/chat/completions"
+MODEL         = "qwen/qwen3-4b-2507"
+TOKEN         = "sk-lm-oHoec2Gk:1lmL4ydO33372ADwGexN"
 
-ARDUINO_BOOT_DELAY_SECONDS = 2
+HEADERS = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {TOKEN}"
+}
 
-arduino = serial.Serial('COM7', 9600, timeout=10)
-logger.info("Connected to Arduino on %s", arduino.port)
+# ─────────────────────────────────────────
+#  CONFIGURACIÓN ARDUINO
+# ─────────────────────────────────────────
+ARDUINO_PORT       = "COM3"
+ARDUINO_BAUD       = 9600
+MOVE_DURATION      = 3    # segundos de movimiento
+DISTANCIA_TRIGGER  = 10   # cm — si detecta objeto a esta distancia o menos, arranca
+INTERVALO_SENSOR   = 0.5  # segundos entre cada lectura del sensor en espera
 
-time.sleep(ARDUINO_BOOT_DELAY_SECONDS)
+arduino = serial.Serial(ARDUINO_PORT, ARDUINO_BAUD, timeout=10)
+print(f"✅ Conectado al Arduino en {arduino.port}")
+time.sleep(2)
 arduino.reset_input_buffer()
 arduino.reset_output_buffer()
 
 
-# ---------------- COMUNICACIÓN ----------------
+# ─────────────────────────────────────────
+#  COMUNICACIÓN ARDUINO
+# ─────────────────────────────────────────
 def arduino_write_read(command: str) -> str:
-    payload = f"{command.strip()}\n"
-    logger.debug("Sending: %s", command)
-
-    # Limpiar buffer antes de enviar
     arduino.reset_input_buffer()
     arduino.reset_output_buffer()
-
-    arduino.write(payload.encode())
+    arduino.write(f"{command.strip()}\n".encode())
     arduino.flush()
 
     cmd = command.strip().upper()
@@ -37,180 +45,237 @@ def arduino_write_read(command: str) -> str:
     elif cmd == "GET_DISTANCE":
         wait = 0.3
     elif cmd in ("OPEN_DOOR_1", "CLOSE_DOOR_1", "OPEN_DOOR_2", "CLOSE_DOOR_2"):
-        wait = 1.5  # tiempo suficiente para que el servo termine
+        wait = 1.5
     else:
         wait = 0.5
 
     time.sleep(wait)
-
-    # Limpiar cualquier basura que haya llegado durante la espera
     result = arduino.readline().decode(errors="replace").strip()
 
-    # Si el resultado parece un comando de motor, ignorarlo
     if any(x in result.upper() for x in ["MOVING", "FORWARD", "BACKWARD"]):
-        logger.warning("Respuesta inesperada ignorada: %s", result)
         arduino.reset_input_buffer()
         return "ok"
 
-    logger.debug("Response: %s", result)
     return result if result else "no response"
 
 
 def arduino_send_only(command: str):
-    """Envía un comando sin leer respuesta — útil para secuencias."""
-    payload = f"{command.strip()}\n"
     arduino.reset_input_buffer()
     arduino.reset_output_buffer()
-    arduino.write(payload.encode())
+    arduino.write(f"{command.strip()}\n".encode())
     arduino.flush()
 
 
-# ---------------- FAST MCP ----------------
-app = FastMCP(
-    name="Robot Control Tools",
-    instructions="""
-/no_think
-Eres un controlador de robot conectado a un Arduino.
+# ─────────────────────────────────────────
+#  FUNCIÓN DE ESPERA — lee sensor hasta
+#  detectar objeto a DISTANCIA_TRIGGER cm
+# ─────────────────────────────────────────
+def esperar_trigger():
+    print(f"\n👀 En espera — acerca un objeto a {DISTANCIA_TRIGGER} cm o menos para arrancar...\n")
 
-REGLAS ABSOLUTAS:
-1. SIEMPRE ejecuta la tool correspondiente al comando.
-2. NUNCA respondas con texto antes de ejecutar la tool.
-3. Después de ejecutar la tool, responde ÚNICAMENTE con el resultado, sin agregar frases como "¡Claro!", "Por supuesto", "El robot está activo", ni nada extra.
-4. Si el resultado es exitoso, responde solo con el mensaje de éxito. Ejemplo: "Ambas puertas cerradas exitosamente."
-5. NUNCA confirmes que estás listo, activo o disponible. Solo ejecuta y reporta el resultado.
+    while True:
+        raw = arduino_write_read("GET_DISTANCE")
 
-MAPEO DE COMANDOS:
+        try:
+            distancia = int(raw.replace("cm", "").replace("Sin obstaculo detectado", "999").strip())
+        except ValueError:
+            distancia = 999
 
-"abre la puerta 1" / "abre puerta 1"            → open_door_1()
-"cierra la puerta 1" / "cierra puerta 1"        → close_door_1()
-"abre la puerta 2" / "abre puerta 2"            → open_door_2()
-"cierra la puerta 2" / "cierra puerta 2"        → close_door_2()
-"abre las dos puertas" / "abre ambas puertas"   → open_both_doors()
-"cierra las dos puertas" / "cierra ambas puertas" → close_both_doors()
+        print(f"   📡 Distancia actual: {raw}     ", end="\r")
 
-"avanza" / "ve hacia adelante"                  → move_forward()
-"retrocede" / "ve hacia atrás"                  → move_backward()
-"gira a la derecha" / "dobla a la derecha"      → turn_right()
-"gira a la izquierda" / "dobla a la izquierda"  → turn_left()
-"detente" / "para" / "stop"                     → stop()
+        if distancia <= DISTANCIA_TRIGGER:
+            print(f"\n\n🚨 Objeto detectado a {distancia} cm — ¡Arrancando secuencia!")
+            time.sleep(0.5)
+            return distancia
 
-"distancia" / "¿hay algo enfrente?"
-"¿a qué distancia hay un obstáculo?"            → get_distance()
-
-"¿el carro está activo?" / "¿estás activo?"
-"¿está funcionando?" / "¿robot activo?"         → check_robot_status()
-
-"¿estás conectado?" / "¿arduino conectado?"
-"¿hay conexión?" / "¿está conectado el arduino?" → check_arduino_connection()
-"""
-)
+        time.sleep(INTERVALO_SENSOR)
 
 
-# ---------------- TOOLS PUERTAS ----------------
-
-@app.tool
-def open_door_1() -> dict:
-    """Abre la puerta 1."""
-    return {"status": arduino_write_read("OPEN_DOOR_1")}
-
-@app.tool
-def close_door_1() -> dict:
-    """Cierra la puerta 1."""
-    return {"status": arduino_write_read("CLOSE_DOOR_1")}
-
-@app.tool
-def open_door_2() -> dict:
-    """Abre la puerta 2."""
-    return {"status": arduino_write_read("OPEN_DOOR_2")}
-
-@app.tool
-def close_door_2() -> dict:
-    """Cierra la puerta 2."""
-    return {"status": arduino_write_read("CLOSE_DOOR_2")}
-
-@app.tool
-def open_both_doors() -> dict:
-    """Abre las dos puertas en secuencia de forma segura."""
+# ─────────────────────────────────────────
+#  TOOLS — funciones Python
+# ─────────────────────────────────────────
+def open_both_doors() -> str:
+    """Abre las dos puertas del robot en secuencia."""
     arduino_write_read("OPEN_DOOR_1")
     time.sleep(0.5)
     arduino_write_read("OPEN_DOOR_2")
-    return {"status": "Las dos puertas se han abierto exitosamente."}
+    return "Las dos puertas están abiertas."
 
-@app.tool
-def close_both_doors() -> dict:
-    """Cierra las dos puertas en secuencia de forma segura."""
+def close_both_doors() -> str:
+    """Cierra las dos puertas del robot en secuencia."""
     arduino_write_read("CLOSE_DOOR_1")
     time.sleep(0.5)
     arduino_write_read("CLOSE_DOOR_2")
-    return {"status": "Las dos puertas se han cerrado exitosamente."}
+    return "Las dos puertas están cerradas."
 
+def move_forward_3s() -> str:
+    """Avanza el robot hacia adelante durante 3 segundos y lo detiene automáticamente."""
+    arduino_send_only("MOVE_FORWARD")
+    time.sleep(MOVE_DURATION)
+    arduino_write_read("STOP")
+    return "Robot avanzó 3 segundos y se detuvo."
 
-# ---------------- TOOLS MOTORES ----------------
+def move_backward_3s() -> str:
+    """Retrocede el robot hacia atrás durante 3 segundos y lo detiene automáticamente."""
+    arduino_send_only("MOVE_BACKWARD")
+    time.sleep(MOVE_DURATION)
+    arduino_write_read("STOP")
+    return "Robot retrocedió 3 segundos y se detuvo."
 
-@app.tool
-def move_forward() -> dict:
-    """Avanza el robot de forma continua. Se detiene automáticamente si hay un obstáculo a 7cm."""
-    result = arduino_write_read("MOVE_FORWARD")
-    if "Obstaculo" in result or "Obstáculo" in result:
-        return {"status": result}
-    return {"status": "Avanzando"}
-
-@app.tool
-def move_backward() -> dict:
-    """Retrocede el robot de forma continua hasta recibir stop."""
-    return {"status": arduino_write_read("MOVE_BACKWARD")}
-
-@app.tool
-def turn_right() -> dict:
+def turn_right() -> str:
     """Gira el robot a la derecha."""
     arduino_write_read("TURN_RIGHT")
-    return {"status": "Ha girado exitosamente"}
+    return "Robot giró a la derecha."
 
-@app.tool
-def turn_left() -> dict:
+def turn_left() -> str:
     """Gira el robot a la izquierda."""
     arduino_write_read("TURN_LEFT")
-    return {"status": "Ha girado exitosamente"}
+    return "Robot giró a la izquierda."
 
-@app.tool
-def stop() -> dict:
-    """Detiene todos los motores inmediatamente."""
-    return {"status": arduino_write_read("STOP")}
-
-
-# ---------------- TOOL SENSOR ----------------
-
-@app.tool
-def get_distance() -> dict:
-    """Mide la distancia al obstáculo más cercano en centímetros usando el sensor ultrasónico."""
+def get_distance() -> str:
+    """Mide la distancia en centímetros al obstáculo más cercano usando el sensor ultrasónico."""
     result = arduino_write_read("GET_DISTANCE")
-    return {"distancia": result}
+    return f"Distancia al obstáculo: {result}"
 
 
-# ---------------- TOOLS ESTADO ----------------
+# ─────────────────────────────────────────
+#  MAPA nombre → función Python
+# ─────────────────────────────────────────
+TOOL_FUNCTIONS = {
+    "open_both_doors":  open_both_doors,
+    "close_both_doors": close_both_doors,
+    "move_forward_3s":  move_forward_3s,
+    "move_backward_3s": move_backward_3s,
+    "turn_right":       turn_right,
+    "turn_left":        turn_left,
+    "get_distance":     get_distance,
+}
 
-@app.tool
-def check_robot_status() -> dict:
-    """Verifica si el robot está activo y funcionando correctamente."""
-    result = arduino_write_read("PING")
-    if result == "pong":
-        return {"status": "El carro está activo y funcionando correctamente."}
-    return {"status": "El carro no responde."}
+# ─────────────────────────────────────────
+#  DEFINICIÓN DE TOOLS (formato OpenAI)
+# ─────────────────────────────────────────
+TOOLS = [
+    {"type": "function", "function": {"name": "open_both_doors",  "description": "Abre las dos puertas del robot en secuencia.",                                          "parameters": {"type": "object", "properties": {}}}},
+    {"type": "function", "function": {"name": "close_both_doors", "description": "Cierra las dos puertas del robot en secuencia.",                                        "parameters": {"type": "object", "properties": {}}}},
+    {"type": "function", "function": {"name": "move_forward_3s",  "description": "Avanza el robot hacia adelante durante 3 segundos y lo detiene automáticamente.",       "parameters": {"type": "object", "properties": {}}}},
+    {"type": "function", "function": {"name": "move_backward_3s", "description": "Retrocede el robot hacia atrás durante 3 segundos y lo detiene automáticamente.",       "parameters": {"type": "object", "properties": {}}}},
+    {"type": "function", "function": {"name": "turn_right",       "description": "Gira el robot a la derecha.",                                                           "parameters": {"type": "object", "properties": {}}}},
+    {"type": "function", "function": {"name": "turn_left",        "description": "Gira el robot a la izquierda.",                                                         "parameters": {"type": "object", "properties": {}}}},
+    {"type": "function", "function": {"name": "get_distance",     "description": "Mide la distancia en centímetros al obstáculo más cercano con el sensor ultrasónico.",  "parameters": {"type": "object", "properties": {}}}},
+]
 
-@app.tool
-def check_arduino_connection() -> dict:
-    """Verifica si el Arduino está conectado y respondiendo."""
+# ─────────────────────────────────────────
+#  MISIÓN
+# ─────────────────────────────────────────
+MISSION = """/no_think
+Ejecuta estas instrucciones EN ORDEN, una por una, usando las tools disponibles.
+NO saltes ningún paso. Espera el resultado de cada tool antes de continuar.
+
+1. Abre las dos puertas          → open_both_doors()
+2. Cierra las dos puertas        → close_both_doors()
+3. Avanza 3 segundos             → move_forward_3s()
+4. Gira a la derecha             → turn_right()
+5. Avanza 3 segundos             → move_forward_3s()
+6. Gira a la izquierda           → turn_left()
+7. Avanza 3 segundos             → move_forward_3s()
+8. Retrocede 3 segundos          → move_backward_3s()
+9. Mide la distancia             → get_distance()
+
+Al finalizar todos los pasos, reporta únicamente a cuántos centímetros está el obstáculo.
+"""
+
+
+# ─────────────────────────────────────────
+#  LLAMADA AL MODELO
+# ─────────────────────────────────────────
+def llamar_modelo(messages):
+    payload = {
+        "model": MODEL,
+        "messages": messages,
+        "tools": TOOLS,
+        "tool_choice": "auto",
+        "temperature": 0,
+    }
+    response = requests.post(LM_STUDIO_URL, headers=HEADERS, json=payload, timeout=120)
+    response.raise_for_status()
+    return response.json()
+
+
+# ─────────────────────────────────────────
+#  EJECUTAR SECUENCIA CON EL MODELO
+# ─────────────────────────────────────────
+def ejecutar_secuencia():
+    messages = [
+        {"role": "system", "content": "Eres un controlador de robot. Ejecuta las tools en orden sin texto extra."},
+        {"role": "user",   "content": MISSION}
+    ]
+
+    while True:
+        data    = llamar_modelo(messages)
+        choice  = data["choices"][0]
+        message = choice["message"]
+
+        messages.append(message)
+
+        if choice.get("finish_reason") == "tool_calls" or message.get("tool_calls"):
+            for tool_call in message["tool_calls"]:
+                name = tool_call["function"]["name"]
+                print(f"\n⚙️  Ejecutando: {name}()")
+
+                if name in TOOL_FUNCTIONS:
+                    resultado = TOOL_FUNCTIONS[name]()
+                    print(f"   ✅ {resultado}")
+                else:
+                    resultado = f"Tool desconocida: {name}"
+                    print(f"   ❌ {resultado}")
+
+                messages.append({
+                    "role":         "tool",
+                    "tool_call_id": tool_call["id"],
+                    "content":      resultado
+                })
+        else:
+            respuesta_final = message.get("content", "")
+            if respuesta_final:
+                print(f"\n🤖 {respuesta_final}")
+            break
+
+
+# ─────────────────────────────────────────
+#  MAIN — loop infinito hasta Ctrl+C
+# ─────────────────────────────────────────
+def main():
+    print("\n🤖 Robot Controller iniciado")
+    print("   Presiona Ctrl+C para detener el programa")
+    print("=" * 50)
+
+    ciclo = 1
+
     try:
-        if arduino.is_open:
-            result = arduino_write_read("PING")
-            if result == "pong":
-                return {"status": f"El Arduino está conectado correctamente en el puerto {arduino.port}."}
-            return {"status": "El Arduino está conectado pero no responde."}
-        return {"status": "El Arduino no está conectado."}
-    except Exception as e:
-        return {"status": f"Error de conexión con el Arduino: {str(e)}"}
+        while True:
+            print(f"\n🔄 Ciclo #{ciclo}")
+
+            # 1. Esperar trigger del sensor
+            esperar_trigger()
+
+            # 2. Ejecutar secuencia automática
+            print("\n🚀 Iniciando secuencia...")
+            print("=" * 50)
+            ejecutar_secuencia()
+
+            print("\n" + "=" * 50)
+            print(f"✅ Secuencia #{ciclo} completada.")
+
+            ciclo += 1
+
+           
+            print("\n⏳ Esperando...")
+            time.sleep(3)
+
+    except KeyboardInterrupt:
+        print("\n\n🛑 Saliendo...")
+        arduino.close()
 
 
-# ---------------- RUN ----------------
 if __name__ == "__main__":
-    app.run()
+    main()
